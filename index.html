@@ -2,106 +2,83 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>SFF Generator - قراءة العداد تلقائياً</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SFF Generator - Auto Meter Capture</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f3f5f7;font-family:Arial,sans-serif}
-.card{max-width:650px;margin:14px auto;background:#fff;border-radius:20px;padding:16px;box-shadow:0 4px 20px #0001}
-h1{text-align:center;font-size:24px;margin:8px}.hint{text-align:center;color:#555;margin:8px 0 14px}
-.camera{position:relative;width:100%;overflow:hidden;border-radius:16px;background:#111}
-video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
-.frame{position:absolute;left:8%;right:8%;top:27%;height:32%;border:3px solid #18c96e;border-radius:10px;box-shadow:0 0 0 9999px #0003;pointer-events:none}
-.reading{font-size:48px;font-weight:700;text-align:center;margin:15px 0 4px;letter-spacing:3px}
-.status{text-align:center;color:#555;min-height:24px}
-button{width:100%;padding:14px;border:0;border-radius:12px;background:#1877b9;color:white;font-size:18px;margin-top:10px}
-.small{text-align:center;color:#888;font-size:12px;margin-top:10px}
+body{font-family:Arial,sans-serif;background:#f2f4f7;margin:0;padding:14px}
+.card{max-width:650px;margin:auto;background:#fff;padding:16px;border-radius:18px}
+h2{text-align:center;margin:5px}.box{position:relative}
+video,canvas{width:100%;border-radius:14px;background:#111;display:block}
+canvas{display:none}.frame{position:absolute;left:7%;right:7%;top:28%;height:30%;border:3px solid #00c96b;border-radius:9px;pointer-events:none}
+#shot{margin-top:12px;display:none}.reading{text-align:center;font-size:48px;font-weight:bold;margin:12px}
+.status{text-align:center;color:#555;min-height:25px}
+button{width:100%;padding:14px;border:0;border-radius:12px;background:#1877b9;color:white;font-size:18px}
 </style>
 </head>
 <body>
 <div class="card">
-<h1>⚡ SFF Generator</h1>
-<div class="hint">وجّه المربع الأخضر على أرقام العداد</div>
-<div class="camera">
+<h2>⚡ SFF Generator</h2>
+<p style="text-align:center">وجّه المربع الأخضر على أرقام العداد</p>
+<div class="box">
 <video id="video" autoplay playsinline muted></video>
 <div class="frame"></div>
 </div>
+<canvas id="work"></canvas>
+<img id="shot" alt="آخر لقطة تلقائية">
 <div id="reading" class="reading">—</div>
 <div id="status" class="status">اضغط تشغيل الكاميرا</div>
 <button id="start">تشغيل الكاميرا</button>
-<div class="small">القراءة تلقائية — لا يوجد زر تصوير</div>
 </div>
-
 <script>
-const video=document.getElementById('video');
-const reading=document.getElementById('reading');
+const video=document.getElementById('video'), work=document.getElementById('work');
+const shot=document.getElementById('shot'), reading=document.getElementById('reading');
 const status=document.getElementById('status');
-let stream=null, worker=null, busy=false, last="", stable=0, running=false;
+let stream,worker,busy=false,running=false,last="",stable=0;
 
-async function startCamera(){
+document.getElementById('start').onclick=async()=>{
  try{
-  if(stream) stream.getTracks().forEach(t=>t.stop());
   stream=await navigator.mediaDevices.getUserMedia({
    video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},
    audio:false
   });
-  video.srcObject=stream;
-  await video.play();
-  status.textContent="الكاميرا تعمل — ثبّت العداد داخل المربع";
-  if(!worker){
-   status.textContent="جاري تجهيز قارئ الأرقام…";
-   worker=await Tesseract.createWorker("eng");
-   await worker.setParameters({
-    tessedit_char_whitelist:"0123456789",
-    tessedit_pageseg_mode:"7"
-   });
-  }
+  video.srcObject=stream; await video.play();
+  status.textContent="جاري تجهيز القراءة التلقائية…";
+  worker=await Tesseract.createWorker("eng");
+  await worker.setParameters({tessedit_char_whitelist:"0123456789",tessedit_pageseg_mode:"7"});
   running=true;
-  status.textContent="عم نقرأ الرقم تلقائياً…";
-  loop();
- }catch(e){
-  status.textContent="تعذر تشغيل الكاميرا أو قارئ الأرقام";
-  console.error(e);
- }
-}
+  status.textContent="جاهز — عم نلقط فريمات تلقائياً";
+  autoCapture();
+ }catch(e){status.textContent="الكاميرا أو OCR لم يعمل: "+e.message}
+};
 
-function cropCanvas(){
- const vw=video.videoWidth, vh=video.videoHeight;
- if(!vw||!vh) return null;
- const c=document.createElement("canvas");
- const sx=Math.floor(vw*.08), sy=Math.floor(vh*.27);
- const sw=Math.floor(vw*.84), sh=Math.floor(vh*.32);
- c.width=sw*2; c.height=sh*2;
- const x=c.getContext("2d");
- x.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
- return c;
-}
-
-async function readFrame(){
- if(busy||!running||video.readyState<2)return;
- busy=true;
- try{
-  const c=cropCanvas();
-  if(!c){busy=false;return}
-  const result=await worker.recognize(c);
-  const digits=(result.data.text||"").replace(/\D/g,"");
-  if(digits.length>=4 && digits.length<=7){
-   if(digits===last) stable++; else {last=digits;stable=1}
-   if(stable>=2){
-    reading.textContent=digits;
-    status.textContent="✓ قراءة ثابتة";
-   }else status.textContent="تثبيت القراءة…";
-  }
- }catch(e){console.error(e)}
- busy=false;
-}
-
-async function loop(){
+async function autoCapture(){
  if(!running)return;
- await readFrame();
- setTimeout(loop,650);
+ if(!busy && video.videoWidth){
+  busy=true;
+  const vw=video.videoWidth,vh=video.videoHeight;
+  const sx=Math.floor(vw*.07),sy=Math.floor(vh*.28);
+  const sw=Math.floor(vw*.86),sh=Math.floor(vh*.30);
+  work.width=sw*2;work.height=sh*2;
+  const ctx=work.getContext("2d");
+  ctx.filter="grayscale(1) contrast(1.8) brightness(1.1)";
+  ctx.drawImage(video,sx,sy,sw,sh,0,0,work.width,work.height);
+
+  shot.src=work.toDataURL("image/jpeg",.85);
+  shot.style.display="block";
+  status.textContent="📸 لقطة تلقائية — عم نقرأها…";
+
+  try{
+   const r=await worker.recognize(work);
+   const d=(r.data.text||"").replace(/\D/g,"");
+   if(d.length>=4 && d.length<=7){
+    if(d===last)stable++;else{last=d;stable=1}
+    if(stable>=2){reading.textContent=d;status.textContent="✓ القراءة ثابتة";}
+   }else status.textContent="📸 لقطة موجودة — الرقم غير واضح بعد";
+  }catch(e){console.log(e)}
+  busy=false;
+ }
+ setTimeout(autoCapture,900);
 }
-document.getElementById("start").onclick=startCamera;
 </script>
-</body>
-</html>
+</body></html>
