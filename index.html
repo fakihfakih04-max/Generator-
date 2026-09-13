@@ -3,160 +3,146 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SFF - قراءة العداد تلقائياً</title>
+<title>SFF Meter OCR Test 4</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#111827;font-family:Arial,sans-serif}
-header{background:#172033;color:#fff;text-align:center;padding:16px;font-size:21px;font-weight:700}
-.wrap{max-width:680px;margin:auto;padding:12px}.card{background:#fff;border-radius:18px;padding:15px;margin:12px 0;box-shadow:0 3px 15px #0001}
-.camera{position:relative;background:#000;border-radius:15px;overflow:hidden;height:390px}
-video{width:100%;height:100%;object-fit:cover}
-.guide{position:absolute;left:7%;right:7%;top:38%;height:25%;border:4px solid #22c55e;border-radius:8px;box-shadow:0 0 0 9999px #0003}
-.guide:after{content:"ضع أرقام شاشة العداد هنا — القراءة تلقائية";position:absolute;top:-35px;left:0;right:0;text-align:center;color:#fff;font-weight:bold;text-shadow:0 1px 3px #000}
+header{background:#172033;color:#fff;text-align:center;padding:16px;font-size:21px;font-weight:bold}
+.wrap{max-width:700px;margin:auto;padding:12px}.card{background:#fff;border-radius:18px;padding:14px;margin:12px 0;box-shadow:0 3px 15px #0001}
+.camera{position:relative;background:#000;border-radius:15px;overflow:hidden;height:400px}
+video{width:100%;height:100%;object-fit:cover}.target{position:absolute;border:4px solid #22c55e;border-radius:8px;display:none;pointer-events:none}
 .status{text-align:center;background:#eaf3ff;color:#172033;padding:12px;border-radius:12px;font-weight:bold}
-.result{text-align:center}.result small{display:block;color:#64748b}.number{font-size:46px;font-weight:700;color:#16a34a;padding:5px}
+.result{text-align:center}.number{font-size:48px;font-weight:bold;color:#16a34a;padding:8px}
 button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:11px;font-size:17px;font-weight:bold}
 .start{background:#16a34a;color:#fff}.stop{background:#ef4444;color:#fff}
 .hint{font-size:14px;color:#64748b;line-height:1.7}
-input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:10px;font-size:20px}
 </style>
 </head>
 <body>
-<header>⚡ SFF — قراءة العداد تلقائياً</header>
+<header>⚡ SFF — Test 4: اكتشاف شاشة العداد تلقائياً</header>
 <div class="wrap">
 <div class="card">
-<div class="camera">
+<div class="camera" id="cameraBox">
 <video id="video" autoplay playsinline muted></video>
-<div class="guide"></div>
+<div id="target" class="target"></div>
 </div>
-<div id="status" class="status">اضغط تشغيل الكاميرا — بعدها القراءة تتم وحدها</div>
-<button class="start" onclick="startCamera()">تشغيل الكاميرا والقراءة</button>
+<div id="status" class="status">اضغط تشغيل — ما في زر تصوير</div>
+<button class="start" onclick="startCamera()">تشغيل الكاميرا والقراءة التلقائية</button>
 <button class="stop" onclick="stopCamera()">إيقاف</button>
 </div>
-
 <div class="card result">
-<small>القراءة الحالية</small>
+<div>القراءة الحالية</div>
 <div id="reading" class="number">------</div>
-<div class="hint">لا يوجد زر لالتقاط الصورة. عندما تظهر أرقام العداد داخل الإطار، التطبيق يحاول قراءتها تلقائياً كل فترة.</div>
-</div>
-
-<div class="card">
-<div class="hint">للاختبار فقط إذا أخطأ OCR، يمكن إدخال القراءة يدويًا:</div>
-<input id="manual" inputmode="decimal" placeholder="مثال: 11.5">
-<button onclick="useManual()" style="background:#172033;color:white">اعتماد القراءة اليدوية</button>
+<div class="hint">النظام يحاول أولاً تحديد مستطيل شاشة العداد، ثم يرسل هذه المنطقة فقط إلى OCR. الكتابة تحت الشاشة لا يفترض أن تدخل بالقراءة.</div>
 </div>
 </div>
 
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-const video=document.getElementById('video');
-const status=document.getElementById('status');
-const reading=document.getElementById('reading');
+const video=document.getElementById('video'), box=document.getElementById('cameraBox');
+const target=document.getElementById('target'), status=document.getElementById('status'), reading=document.getElementById('reading');
 let stream=null,busy=false,timer=null;
 
-function normalizeMeter(raw){
-  if(!raw)return null;
-  let s=raw.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5');
-  s=s.replace(/[^\d]/g,'');
-  if(s.length<5 || s.length>7)return null;
+function setStatus(s){status.textContent=s}
 
-  // This meter style has 5 whole-number wheels + 1 red tenth wheel.
-  // Example: 000115 -> 11.5
-  if(s.length===6){
-    const whole=s.slice(0,5).replace(/^0+(?=\d)/,'') || '0';
-    const tenth=s.slice(5);
-    return whole+'.'+tenth;
-  }
-  if(s.length===7){
-    const whole=s.slice(0,6).replace(/^0+(?=\d)/,'') || '0';
-    return whole+'.'+s.slice(6);
-  }
-  // Fallback for a 5-digit OCR result: treat as whole reading.
-  return (s.replace(/^0+(?=\d)/,'') || '0');
+function mapCropToScreen(r){
+  const ew=video.clientWidth, eh=video.clientHeight, vw=video.videoWidth, vh=video.videoHeight;
+  const scale=Math.max(ew/vw,eh/vh), dw=vw*scale, dh=vh*scale, ox=(ew-dw)/2, oy=(eh-dh)/2;
+  target.style.left=(ox+r.x*scale)+'px'; target.style.top=(oy+r.y*scale)+'px';
+  target.style.width=(r.w*scale)+'px'; target.style.height=(r.h*scale)+'px'; target.style.display='block';
 }
 
-function candidates(text){
-  const t=text.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5');
-  const a=(t.match(/\d+/g)||[]).filter(x=>x.length>=5 && x.length<=7);
-  return a;
+function findDisplay(){
+  const vw=video.videoWidth,vh=video.videoHeight;
+  const c=document.createElement('canvas'); c.width=vw;c.height=vh;
+  const ctx=c.getContext('2d');ctx.drawImage(video,0,0,vw,vh);
+  if(typeof cv==='undefined'||!cv.Mat)return null;
+  const src=cv.imread(c), gray=new cv.Mat(), bw=new cv.Mat(), contours=new cv.MatVector(), hier=new cv.Mat();
+  let best=null,bestScore=-1;
+  try{
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray,gray,new cv.Size(5,5),0);
+    cv.Canny(gray,bw,60,160);
+    cv.findContours(bw,contours,hier,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
+    for(let i=0;i<contours.size();i++){
+      const cnt=contours.get(i), rect=cv.boundingRect(cnt);
+      const area=rect.width*rect.height, ratio=rect.width/Math.max(1,rect.height);
+      const fill=area/(vw*vh);
+      // A meter register is a horizontal, fairly wide rectangle.
+      if(rect.width<vw*.18 || rect.height<vh*.025 || ratio<2.0 || ratio>12) {cnt.delete();continue}
+      if(fill<.006 || fill>.45){cnt.delete();continue}
+      const cx=rect.x+rect.width/2, cy=rect.y+rect.height/2;
+      // Prefer the upper/middle part of the meter, not serial text near bottom.
+      const vertical=Math.max(0,1-Math.abs(cy/vh-.40)/.38);
+      const score=ratio*1.2 + vertical*3 + Math.min(rect.width/vw,.8)*2;
+      if(score>bestScore){bestScore=score;best={x:Math.max(0,rect.x-10),y:Math.max(0,rect.y-10),w:Math.min(vw-rect.x+10,rect.width+20),h:Math.min(vh-rect.y+10,rect.height+20)}}
+      cnt.delete();
+    }
+  }catch(e){} finally{src.delete();gray.delete();bw.delete();contours.delete();hier.delete()}
+  return best;
+}
+
+function cleanCandidates(text){
+  const t=text.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5').replace(/[Bb]/g,'8');
+  return (t.match(/\d+/g)||[]).filter(x=>x.length>=4&&x.length<=7);
 }
 
 async function readFrame(){
-  if(!stream || busy)return;
-  busy=true;
-  try{
-    const w=video.videoWidth,h=video.videoHeight;
-    if(w<100){busy=false;return schedule();}
-
-    const c=document.createElement('canvas');
-    // Crop exactly around the green display area; excludes text below the meter.
-    const cropW=Math.floor(w*.86);
-    const cropH=Math.floor(h*.24);
-    const sx=(w-cropW)/2;
-    const sy=Math.floor(h*.38);
-    c.width=cropW*2;c.height=cropH*2;
-    const ctx=c.getContext('2d',{willReadFrequently:true});
-    ctx.drawImage(video,sx,sy,cropW,cropH,0,0,c.width,c.height);
-
-    // Improve contrast for the mechanical digits.
-    const img=ctx.getImageData(0,0,c.width,c.height);
-    for(let i=0;i<img.data.length;i+=4){
-      const r=img.data[i],g=img.data[i+1],b=img.data[i+2];
-      const gray=.299*r+.587*g+.114*b;
-      const v=gray>145?255:gray<85?0:Math.round((gray-85)*255/60);
-      img.data[i]=img.data[i+1]=img.data[i+2]=v;
-    }
-    ctx.putImageData(img,0,0);
-
-    status.textContent='⏳ عم بقرأ شاشة العداد تلقائياً...';
-    const out=await Tesseract.recognize(c,'eng',{
-      config:{tessedit_char_whitelist:'0123456789'}
-    });
-    const cs=candidates(out.data.text||'');
-    if(cs.length){
-      // Prefer a six-digit sequence because it represents 5 whole digits + red tenth.
-      cs.sort((a,b)=>(b.length-a.length));
-      const v=normalizeMeter(cs[0]);
-      if(v){
-        reading.textContent=v;
-        status.textContent='✅ قراءة تلقائية: '+v;
-      }
-    }
-  }catch(e){
-    status.textContent='⚠️ ما قدر يقرأ هالمحاولة — خليك ثابت وقرب الشاشة';
+ if(!stream||busy)return;
+ busy=true;
+ try{
+  const r=findDisplay();
+  if(!r){
+    setStatus('🔎 عم دور على شاشة الأرقام...');
+    busy=false;return schedule();
   }
-  busy=false;
-  schedule();
+  mapCropToScreen(r);
+  const c=document.createElement('canvas');
+  // Add a little padding but keep the crop tight.
+  const vw=video.videoWidth,vh=video.videoHeight;
+  const x=Math.max(0,r.x),y=Math.max(0,r.y),w=Math.min(vw-x,r.w),h=Math.min(vh-y,r.h);
+  c.width=Math.max(500,Math.floor(w*2.4));c.height=Math.max(180,Math.floor(h*2.4));
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(video,x,y,w,h,0,0,c.width,c.height);
+
+  setStatus('⏳ شاشة العداد محددة — عم نقرأ الأرقام...');
+  const out=await Tesseract.recognize(c,'eng',{
+    config:{tessedit_char_whitelist:'0123456789'}
+  });
+  const cs=cleanCandidates(out.data.text||'');
+  if(cs.length){
+    // Avoid common technical markings.
+    const bad=new Set(['100','1000','1600','230','50','60','21','62053']);
+    const good=cs.filter(v=>!bad.has(v));
+    if(good.length){
+      // If a six-digit result is found, it is often 5 wheels + red tenth.
+      const six=good.find(v=>v.length===6);
+      const chosen=six||good.sort((a,b)=>b.length-a.length)[0];
+      reading.textContent=chosen;
+      setStatus('✅ قراءة الشاشة: '+chosen);
+    }
+  } else setStatus('📷 الشاشة محددة — قرّب العداد وثبّت الهاتف');
+ }catch(e){setStatus('⚠️ محاولة قراءة جديدة...')}
+ busy=false;
+ schedule();
 }
 
-function schedule(){
-  if(stream && !timer) timer=setTimeout(()=>{timer=null;readFrame()},1200);
-}
+function schedule(){if(stream&&!timer)timer=setTimeout(()=>{timer=null;readFrame()},1200)}
 
 async function startCamera(){
-  try{
-    if(stream)stopCamera();
-    stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
-      audio:false
-    });
-    video.srcObject=stream;
-    status.textContent='✅ الكاميرا تعمل — حط شاشة الأرقام داخل الإطار الأخضر';
-    setTimeout(readFrame,1000);
-  }catch(e){
-    status.textContent='❌ تعذّر تشغيل الكاميرا: '+e.message;
-  }
+ try{
+  stopCamera(false);
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+  video.srcObject=stream;
+  setStatus('✅ الكاميرا تعمل — عم أبحث تلقائياً عن شاشة الأرقام');
+  setTimeout(readFrame,1500);
+ }catch(e){setStatus('❌ تعذّر تشغيل الكاميرا: '+e.message)}
 }
-
-function stopCamera(){
-  if(timer){clearTimeout(timer);timer=null}
-  if(stream)stream.getTracks().forEach(t=>t.stop());
-  stream=null;video.srcObject=null;
-  status.textContent='تم إيقاف الكاميرا';
-}
-
-function useManual(){
-  const v=document.getElementById('manual').value.trim();
-  if(v){reading.textContent=v;status.textContent='✅ تم اعتماد القراءة: '+v}
+function stopCamera(show=true){
+ if(timer){clearTimeout(timer);timer=null}
+ if(stream)stream.getTracks().forEach(t=>t.stop());
+ stream=null;video.srcObject=null;target.style.display='none';
+ if(show)setStatus('تم إيقاف الكاميرا');
 }
 </script>
 </body>
