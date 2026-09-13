@@ -1,15 +1,107 @@
-<!doctype html><html lang="ar" dir="rtl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SFF Generator</title>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>SFF Generator - قراءة العداد تلقائياً</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
-body{font-family:Arial;background:#f4f6f8;margin:0;padding:18px}.card{max-width:600px;margin:auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 4px 18px #0001}
-video{width:100%;border-radius:14px;background:#111;aspect-ratio:4/3;object-fit:cover}
-button{width:100%;padding:14px;border:0;border-radius:12px;background:#1769aa;color:#fff;font-size:18px;margin-top:12px}
-#reading{font-size:42px;font-weight:bold;text-align:center;margin:20px}.status{text-align:center;color:#555}
-</style></head><body><div class="card">
-<h1>⚡ SFF Generator</h1><p>اختبار الكاميرا</p><video id="video" autoplay playsinline></video>
-<div id="reading">—</div><div class="status" id="status">اضغط تشغيل الكاميرا</div>
-<button id="start">تشغيل الكاميرا</button></div>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f7;font-family:Arial,sans-serif}
+.card{max-width:650px;margin:14px auto;background:#fff;border-radius:20px;padding:16px;box-shadow:0 4px 20px #0001}
+h1{text-align:center;font-size:24px;margin:8px}.hint{text-align:center;color:#555;margin:8px 0 14px}
+.camera{position:relative;width:100%;overflow:hidden;border-radius:16px;background:#111}
+video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.frame{position:absolute;left:8%;right:8%;top:27%;height:32%;border:3px solid #18c96e;border-radius:10px;box-shadow:0 0 0 9999px #0003;pointer-events:none}
+.reading{font-size:48px;font-weight:700;text-align:center;margin:15px 0 4px;letter-spacing:3px}
+.status{text-align:center;color:#555;min-height:24px}
+button{width:100%;padding:14px;border:0;border-radius:12px;background:#1877b9;color:white;font-size:18px;margin-top:10px}
+.small{text-align:center;color:#888;font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>⚡ SFF Generator</h1>
+<div class="hint">وجّه المربع الأخضر على أرقام العداد</div>
+<div class="camera">
+<video id="video" autoplay playsinline muted></video>
+<div class="frame"></div>
+</div>
+<div id="reading" class="reading">—</div>
+<div id="status" class="status">اضغط تشغيل الكاميرا</div>
+<button id="start">تشغيل الكاميرا</button>
+<div class="small">القراءة تلقائية — لا يوجد زر تصوير</div>
+</div>
+
 <script>
-start.onclick=async()=>{try{video.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}});status.textContent="الكاميرا تعمل — وجّهها نحو العداد"}catch(e){status.textContent="تعذر تشغيل الكاميرا"}};
-</script></body></html>
+const video=document.getElementById('video');
+const reading=document.getElementById('reading');
+const status=document.getElementById('status');
+let stream=null, worker=null, busy=false, last="", stable=0, running=false;
+
+async function startCamera(){
+ try{
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream=await navigator.mediaDevices.getUserMedia({
+   video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},
+   audio:false
+  });
+  video.srcObject=stream;
+  await video.play();
+  status.textContent="الكاميرا تعمل — ثبّت العداد داخل المربع";
+  if(!worker){
+   status.textContent="جاري تجهيز قارئ الأرقام…";
+   worker=await Tesseract.createWorker("eng");
+   await worker.setParameters({
+    tessedit_char_whitelist:"0123456789",
+    tessedit_pageseg_mode:"7"
+   });
+  }
+  running=true;
+  status.textContent="عم نقرأ الرقم تلقائياً…";
+  loop();
+ }catch(e){
+  status.textContent="تعذر تشغيل الكاميرا أو قارئ الأرقام";
+  console.error(e);
+ }
+}
+
+function cropCanvas(){
+ const vw=video.videoWidth, vh=video.videoHeight;
+ if(!vw||!vh) return null;
+ const c=document.createElement("canvas");
+ const sx=Math.floor(vw*.08), sy=Math.floor(vh*.27);
+ const sw=Math.floor(vw*.84), sh=Math.floor(vh*.32);
+ c.width=sw*2; c.height=sh*2;
+ const x=c.getContext("2d");
+ x.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+ return c;
+}
+
+async function readFrame(){
+ if(busy||!running||video.readyState<2)return;
+ busy=true;
+ try{
+  const c=cropCanvas();
+  if(!c){busy=false;return}
+  const result=await worker.recognize(c);
+  const digits=(result.data.text||"").replace(/\D/g,"");
+  if(digits.length>=4 && digits.length<=7){
+   if(digits===last) stable++; else {last=digits;stable=1}
+   if(stable>=2){
+    reading.textContent=digits;
+    status.textContent="✓ قراءة ثابتة";
+   }else status.textContent="تثبيت القراءة…";
+  }
+ }catch(e){console.error(e)}
+ busy=false;
+}
+
+async function loop(){
+ if(!running)return;
+ await readFrame();
+ setTimeout(loop,650);
+}
+document.getElementById("start").onclick=startCamera;
+</script>
+</body>
+</html>
