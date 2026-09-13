@@ -3,108 +3,160 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SFF - اختبار قراءة شاشة العداد</title>
+<title>SFF - قراءة العداد تلقائياً</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#111827;font-family:Arial,sans-serif}
-header{background:#172033;color:white;text-align:center;padding:17px;font-size:21px;font-weight:bold}
-.wrap{max-width:680px;margin:auto;padding:12px}.card{background:white;border-radius:18px;padding:15px;margin:12px 0;box-shadow:0 3px 15px #0001}
+header{background:#172033;color:#fff;text-align:center;padding:16px;font-size:21px;font-weight:700}
+.wrap{max-width:680px;margin:auto;padding:12px}.card{background:#fff;border-radius:18px;padding:15px;margin:12px 0;box-shadow:0 3px 15px #0001}
 .camera{position:relative;background:#000;border-radius:15px;overflow:hidden;height:390px}
 video{width:100%;height:100%;object-fit:cover}
-.guide{position:absolute;left:8%;right:8%;top:39%;height:23%;border:4px solid #22c55e;border-radius:8px;box-shadow:0 0 0 9999px #0003}
-.guide:after{content:"وجّه شاشة الأرقام داخل الإطار";position:absolute;top:-35px;left:0;right:0;text-align:center;color:white;font-weight:bold;text-shadow:0 1px 3px #000}
+.guide{position:absolute;left:7%;right:7%;top:38%;height:25%;border:4px solid #22c55e;border-radius:8px;box-shadow:0 0 0 9999px #0003}
+.guide:after{content:"ضع أرقام شاشة العداد هنا — القراءة تلقائية";position:absolute;top:-35px;left:0;right:0;text-align:center;color:#fff;font-weight:bold;text-shadow:0 1px 3px #000}
 .status{text-align:center;background:#eaf3ff;color:#172033;padding:12px;border-radius:12px;font-weight:bold}
-.result{text-align:center}.result small{display:block;color:#64748b}.number{font-size:44px;font-weight:bold;margin:7px;color:#16a34a}
+.result{text-align:center}.result small{display:block;color:#64748b}.number{font-size:46px;font-weight:700;color:#16a34a;padding:5px}
 button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:11px;font-size:17px;font-weight:bold}
-.start{background:#16a34a;color:white}.photo{background:#2563eb;color:white}.manual{background:#172033;color:white}
+.start{background:#16a34a;color:#fff}.stop{background:#ef4444;color:#fff}
+.hint{font-size:14px;color:#64748b;line-height:1.7}
 input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:10px;font-size:20px}
-#file{display:none}.hint{font-size:14px;color:#64748b;line-height:1.6}
 </style>
 </head>
 <body>
-<header>⚡ SFF — Test 2: قراءة شاشة العداد فقط</header>
+<header>⚡ SFF — قراءة العداد تلقائياً</header>
 <div class="wrap">
 <div class="card">
 <div class="camera">
 <video id="video" autoplay playsinline muted></video>
 <div class="guide"></div>
 </div>
-<div id="status" class="status">شغّل الكاميرا ووجّه الشاشة داخل الإطار الأخضر</div>
-<button class="start" onclick="startCamera()">تشغيل الكاميرا</button>
-<button class="photo" onclick="file.click()">📷 صوّر/اختر صورة العداد</button>
-<input id="file" type="file" accept="image/*" capture="environment">
+<div id="status" class="status">اضغط تشغيل الكاميرا — بعدها القراءة تتم وحدها</div>
+<button class="start" onclick="startCamera()">تشغيل الكاميرا والقراءة</button>
+<button class="stop" onclick="stopCamera()">إيقاف</button>
 </div>
 
 <div class="card result">
-<small>القراءة التي تم استخراجها</small>
+<small>القراءة الحالية</small>
 <div id="reading" class="number">------</div>
-<div class="hint">الاختبار يركّز على منطقة شاشة الأرقام، وليس الأرقام أو الكتابة الموجودة تحت العداد.</div>
+<div class="hint">لا يوجد زر لالتقاط الصورة. عندما تظهر أرقام العداد داخل الإطار، التطبيق يحاول قراءتها تلقائياً كل فترة.</div>
 </div>
 
 <div class="card">
-<label>إذا احتجنا للتأكد، يمكنك إدخال القراءة يدويًا:</label>
+<div class="hint">للاختبار فقط إذا أخطأ OCR، يمكن إدخال القراءة يدويًا:</div>
 <input id="manual" inputmode="decimal" placeholder="مثال: 11.5">
-<button class="manual" onclick="useManual()">اعتماد القراءة اليدوية</button>
+<button onclick="useManual()" style="background:#172033;color:white">اعتماد القراءة اليدوية</button>
 </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-const video=document.getElementById('video'), status=document.getElementById('status'), reading=document.getElementById('reading');
-let stream=null,busy=false;
+const video=document.getElementById('video');
+const status=document.getElementById('status');
+const reading=document.getElementById('reading');
+let stream=null,busy=false,timer=null;
 
-function show(v){reading.textContent=v}
+function normalizeMeter(raw){
+  if(!raw)return null;
+  let s=raw.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5');
+  s=s.replace(/[^\d]/g,'');
+  if(s.length<5 || s.length>7)return null;
+
+  // This meter style has 5 whole-number wheels + 1 red tenth wheel.
+  // Example: 000115 -> 11.5
+  if(s.length===6){
+    const whole=s.slice(0,5).replace(/^0+(?=\d)/,'') || '0';
+    const tenth=s.slice(5);
+    return whole+'.'+tenth;
+  }
+  if(s.length===7){
+    const whole=s.slice(0,6).replace(/^0+(?=\d)/,'') || '0';
+    return whole+'.'+s.slice(6);
+  }
+  // Fallback for a 5-digit OCR result: treat as whole reading.
+  return (s.replace(/^0+(?=\d)/,'') || '0');
+}
+
+function candidates(text){
+  const t=text.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5');
+  const a=(t.match(/\d+/g)||[]).filter(x=>x.length>=5 && x.length<=7);
+  return a;
+}
+
+async function readFrame(){
+  if(!stream || busy)return;
+  busy=true;
+  try{
+    const w=video.videoWidth,h=video.videoHeight;
+    if(w<100){busy=false;return schedule();}
+
+    const c=document.createElement('canvas');
+    // Crop exactly around the green display area; excludes text below the meter.
+    const cropW=Math.floor(w*.86);
+    const cropH=Math.floor(h*.24);
+    const sx=(w-cropW)/2;
+    const sy=Math.floor(h*.38);
+    c.width=cropW*2;c.height=cropH*2;
+    const ctx=c.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(video,sx,sy,cropW,cropH,0,0,c.width,c.height);
+
+    // Improve contrast for the mechanical digits.
+    const img=ctx.getImageData(0,0,c.width,c.height);
+    for(let i=0;i<img.data.length;i+=4){
+      const r=img.data[i],g=img.data[i+1],b=img.data[i+2];
+      const gray=.299*r+.587*g+.114*b;
+      const v=gray>145?255:gray<85?0:Math.round((gray-85)*255/60);
+      img.data[i]=img.data[i+1]=img.data[i+2]=v;
+    }
+    ctx.putImageData(img,0,0);
+
+    status.textContent='⏳ عم بقرأ شاشة العداد تلقائياً...';
+    const out=await Tesseract.recognize(c,'eng',{
+      config:{tessedit_char_whitelist:'0123456789'}
+    });
+    const cs=candidates(out.data.text||'');
+    if(cs.length){
+      // Prefer a six-digit sequence because it represents 5 whole digits + red tenth.
+      cs.sort((a,b)=>(b.length-a.length));
+      const v=normalizeMeter(cs[0]);
+      if(v){
+        reading.textContent=v;
+        status.textContent='✅ قراءة تلقائية: '+v;
+      }
+    }
+  }catch(e){
+    status.textContent='⚠️ ما قدر يقرأ هالمحاولة — خليك ثابت وقرب الشاشة';
+  }
+  busy=false;
+  schedule();
+}
+
+function schedule(){
+  if(stream && !timer) timer=setTimeout(()=>{timer=null;readFrame()},1200);
+}
 
 async function startCamera(){
- try{
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
-  video.srcObject=stream;
-  status.textContent='✅ الكاميرا تعمل — ضع أرقام شاشة العداد داخل الإطار';
- }catch(e){status.textContent='❌ الكاميرا لم تعمل: '+e.message}
+  try{
+    if(stream)stopCamera();
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+    video.srcObject=stream;
+    status.textContent='✅ الكاميرا تعمل — حط شاشة الأرقام داخل الإطار الأخضر';
+    setTimeout(readFrame,1000);
+  }catch(e){
+    status.textContent='❌ تعذّر تشغيل الكاميرا: '+e.message;
+  }
 }
 
-function cleanOCR(text){
- text=text.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5');
- // keep only digit sequences; prefer 1-6 digit sequences, avoiding obvious labels
- let arr=(text.match(/\d+(?:[.,]\d+)?/g)||[]).map(x=>x.replace(',','.'));
- arr=arr.filter(x=>{
-   const n=parseFloat(x);
-   return x.length>=1 && x.length<=7 && ![10,100,1000,1600,230,60,50,21].includes(n);
- });
- // Prefer 5-6 digit meter-register numbers, otherwise largest useful sequence
- arr.sort((a,b)=>{
-   const sa=/^\d{5,6}$/.test(a)?2:1, sb=/^\d{5,6}$/.test(b)?2:1;
-   return sb-sa || b.length-a.length;
- });
- return arr[0]||null;
+function stopCamera(){
+  if(timer){clearTimeout(timer);timer=null}
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=null;video.srcObject=null;
+  status.textContent='تم إيقاف الكاميرا';
 }
-
-async function ocrFile(file){
- status.textContent='⏳ عم نقرأ شاشة العداد فقط...';
- try{
-  const img=await createImageBitmap(file);
-  const c=document.createElement('canvas');
-  // Central horizontal strip: excludes most text below the display.
-  const sw=img.width, sh=img.height;
-  const cropW=Math.floor(sw*.88), cropH=Math.floor(sh*.27);
-  c.width=cropW*2;c.height=cropH*2;
-  const ctx=c.getContext('2d');
-  ctx.drawImage(img,(sw-cropW)/2,(sh-cropH)*.38,cropW,cropH,0,0,c.width,c.height);
-  const r=await Tesseract.recognize(c,'eng',{config:{tessedit_char_whitelist:'0123456789.'},logger:m=>{
-   if(m.status==='recognizing text') status.textContent='⏳ OCR '+Math.round((m.progress||0)*100)+'%';
-  }});
-  const v=cleanOCR(r.data.text||'');
-  if(v){show(v);status.textContent='✅ القراءة المحتملة: '+v}
-  else status.textContent='⚠️ ما لقطنا الرقم. قرّب الشاشة داخل الإطار وصوّر من الأمام.';
- }catch(e){status.textContent='❌ تعذّرت قراءة الصورة'}
-}
-
-file.addEventListener('change',e=>{
- const f=e.target.files[0];if(f)ocrFile(f);
-});
 
 function useManual(){
- const v=document.getElementById('manual').value.trim();
- if(v){show(v);status.textContent='✅ تم اعتماد القراءة يدويًا: '+v}
+  const v=document.getElementById('manual').value.trim();
+  if(v){reading.textContent=v;status.textContent='✅ تم اعتماد القراءة: '+v}
 }
 </script>
 </body>
