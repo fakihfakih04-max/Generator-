@@ -3,82 +3,101 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SFF Generator - Auto Meter Capture</title>
+<title>SFF Generator - OCR Test</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 body{font-family:Arial,sans-serif;background:#f2f4f7;margin:0;padding:14px}
-.card{max-width:650px;margin:auto;background:#fff;padding:16px;border-radius:18px}
-h2{text-align:center;margin:5px}.box{position:relative}
-video,canvas{width:100%;border-radius:14px;background:#111;display:block}
-canvas{display:none}.frame{position:absolute;left:7%;right:7%;top:28%;height:30%;border:3px solid #00c96b;border-radius:9px;pointer-events:none}
-#shot{margin-top:12px;display:none}.reading{text-align:center;font-size:48px;font-weight:bold;margin:12px}
-.status{text-align:center;color:#555;min-height:25px}
-button{width:100%;padding:14px;border:0;border-radius:12px;background:#1877b9;color:white;font-size:18px}
+.card{max-width:650px;margin:auto;background:#fff;padding:16px;border-radius:18px;box-shadow:0 3px 16px #0001}
+h2{text-align:center}.cam{position:relative}.cam video,.saved{width:100%;border-radius:14px;display:block;background:#111}.frame{position:absolute;left:6%;right:6%;top:25%;height:38%;border:3px solid #00c96b;border-radius:10px;pointer-events:none}
+.reading{text-align:center;font-size:48px;font-weight:bold;margin:12px}.status{text-align:center;color:#555;min-height:25px}
+button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:12px;background:#1877b9;color:#fff;font-size:18px}
+.saved{margin-top:12px;display:none}
 </style>
 </head>
 <body>
 <div class="card">
 <h2>⚡ SFF Generator</h2>
-<p style="text-align:center">وجّه المربع الأخضر على أرقام العداد</p>
-<div class="box">
-<video id="video" autoplay playsinline muted></video>
-<div class="frame"></div>
-</div>
-<canvas id="work"></canvas>
-<img id="shot" alt="آخر لقطة تلقائية">
+<p style="text-align:center">ثبّت أرقام العداد داخل المربع الأخضر</p>
+<div class="cam"><video id="video" autoplay playsinline muted></video><div class="frame"></div></div>
 <div id="reading" class="reading">—</div>
 <div id="status" class="status">اضغط تشغيل الكاميرا</div>
 <button id="start">تشغيل الكاميرا</button>
+<img id="saved" class="saved">
 </div>
 <script>
-const video=document.getElementById('video'), work=document.getElementById('work');
-const shot=document.getElementById('shot'), reading=document.getElementById('reading');
-const status=document.getElementById('status');
+const video=document.getElementById("video"), saved=document.getElementById("saved");
+const reading=document.getElementById("reading"), status=document.getElementById("status");
 let stream,worker,busy=false,running=false,last="",stable=0;
 
-document.getElementById('start').onclick=async()=>{
- try{
-  stream=await navigator.mediaDevices.getUserMedia({
-   video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},
-   audio:false
-  });
-  video.srcObject=stream; await video.play();
-  status.textContent="جاري تجهيز القراءة التلقائية…";
-  worker=await Tesseract.createWorker("eng");
-  await worker.setParameters({tessedit_char_whitelist:"0123456789",tessedit_pageseg_mode:"7"});
-  running=true;
-  status.textContent="جاهز — عم نلقط فريمات تلقائياً";
-  autoCapture();
- }catch(e){status.textContent="الكاميرا أو OCR لم يعمل: "+e.message}
-};
+function showSaved(){
+ const x=localStorage.getItem("SFF_LAST_METER_IMAGE");
+ if(x){saved.src=x;saved.style.display="block";}
+}
+showSaved();
 
-async function autoCapture(){
+async function start(){
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
+  video.srcObject=stream; await video.play();
+  status.textContent="جاري تجهيز OCR…";
+  worker=await Tesseract.createWorker("eng");
+  await worker.setParameters({
+   tessedit_char_whitelist:"0123456789",
+   tessedit_pageseg_mode:"6"
+  });
+  running=true;
+  status.textContent="جاهز — الالتقاط والقراءة تلقائياً";
+  loop();
+ }catch(e){status.textContent="خطأ: "+e.message}
+}
+
+function makeFrame(){
+ const vw=video.videoWidth,vh=video.videoHeight;
+ const c=document.createElement("canvas");
+ c.width=vw;c.height=vh;
+ const ctx=c.getContext("2d");
+ ctx.drawImage(video,0,0,vw,vh);
+ return c;
+}
+
+function crop(c){
+ const w=c.width,h=c.height;
+ const x=Math.floor(w*.05), y=Math.floor(h*.20);
+ const cw=Math.floor(w*.90), ch=Math.floor(h*.55);
+ const o=document.createElement("canvas");o.width=cw*2;o.height=ch*2;
+ const q=o.getContext("2d");
+ q.filter="grayscale(1) contrast(2) brightness(1.15)";
+ q.drawImage(c,x,y,cw,ch,0,0,o.width,o.height);
+ return o;
+}
+
+async function loop(){
  if(!running)return;
  if(!busy && video.videoWidth){
   busy=true;
-  const vw=video.videoWidth,vh=video.videoHeight;
-  const sx=Math.floor(vw*.07),sy=Math.floor(vh*.28);
-  const sw=Math.floor(vw*.86),sh=Math.floor(vh*.30);
-  work.width=sw*2;work.height=sh*2;
-  const ctx=work.getContext("2d");
-  ctx.filter="grayscale(1) contrast(1.8) brightness(1.1)";
-  ctx.drawImage(video,sx,sy,sw,sh,0,0,work.width,work.height);
-
-  shot.src=work.toDataURL("image/jpeg",.85);
-  shot.style.display="block";
-  status.textContent="📸 لقطة تلقائية — عم نقرأها…";
-
   try{
-   const r=await worker.recognize(work);
-   const d=(r.data.text||"").replace(/\D/g,"");
-   if(d.length>=4 && d.length<=7){
+   const full=makeFrame();
+   const target=crop(full);
+   const data=target.toDataURL("image/jpeg",.9);
+   saved.src=data;saved.style.display="block";
+   try{localStorage.setItem("SFF_LAST_METER_IMAGE",data)}catch(e){}
+   status.textContent="📸 الصورة محفوظة — عم نقرأ الرقم…";
+   const r=await worker.recognize(target);
+   const text=(r.data.text||"").replace(/[^\d\s]/g," ");
+   const nums=text.match(/\d{4,7}/g)||[];
+   let d="";
+   if(nums.length)d=nums.sort((a,b)=>Math.abs(a.length-4.5)-Math.abs(b.length-4.5))[0];
+   if(d){
     if(d===last)stable++;else{last=d;stable=1}
-    if(stable>=2){reading.textContent=d;status.textContent="✓ القراءة ثابتة";}
-   }else status.textContent="📸 لقطة موجودة — الرقم غير واضح بعد";
-  }catch(e){console.log(e)}
+    if(stable>=2){reading.textContent=d;status.textContent="✓ الرقم مقروء وثابت";}
+    else status.textContent="تثبيت القراءة…";
+   }else status.textContent="📸 الصورة محفوظة — الرقم غير واضح للـOCR بعد";
+  }catch(e){console.log(e);status.textContent="الصورة محفوظة — OCR عم يعالج…"}
   busy=false;
  }
- setTimeout(autoCapture,900);
+ setTimeout(loop,1000);
 }
+document.getElementById("start").onclick=start;
 </script>
-</body></html>
+</body>
+</html>
