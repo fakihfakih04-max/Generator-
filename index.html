@@ -1,5 +1,133 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SFF Generator</title><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><style>body{font-family:Arial;background:#f3f5f7;padding:14px} .card{max-width:650px;margin:auto;background:white;border-radius:18px;padding:16px} video,img{width:100%;border-radius:14px}img{display:none;margin-top:12px}button{width:100%;padding:14px;margin-top:12px;border:0;border-radius:12px;background:#1877b9;color:white;font-size:18px}#reading{text-align:center;font-size:48px;font-weight:bold;margin:12px}#status{text-align:center;color:#555}.cam{position:relative}.frame{position:absolute;left:6%;right:6%;top:25%;height:38%;border:3px solid #00c96b;border-radius:10px}</style></head><body><div class="card"><h2>⚡ SFF Generator</h2><p style="text-align:center">ثبّت أرقام العداد داخل المربع الأخضر</p><div class="cam"><video id="video" autoplay playsinline muted></video><div class="frame"></div></div><div id="reading">—</div><div id="status">اضغط تشغيل الكاميرا</div><button id="start">تشغيل الكاميرا</button><img id="photo"></div><script>
-const video=document.getElementById('video'),photo=document.getElementById('photo'),status=document.getElementById('status'),reading=document.getElementById('reading');let stream,worker,captured=false;
-start.onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});video.srcObject=stream;await video.play();status.textContent='ثبّت الهاتف... سيتم التقاط صورة واحدة تلقائياً';setTimeout(capture,2500)}catch(e){status.textContent='تعذر تشغيل الكاميرا'}};
-async function capture(){if(captured||!video.videoWidth)return;captured=true;status.textContent='📸 عم نلتقط صورة واحدة...';let c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0,c.width,c.height);let data=c.toDataURL('image/jpeg',.95);photo.src=data;photo.style.display='block';try{localStorage.setItem('SFF_METER_PHOTO',data)}catch(e){}status.textContent='✓ الصورة انحفظت — جاري قراءة الرقم...';try{worker=await Tesseract.createWorker('eng');await worker.setParameters({tessedit_char_whitelist:'0123456789',tessedit_pageseg_mode:'6'});let r=await worker.recognize(c),n=r.data.text.match(/\d{4,7}/g)||[];if(n.length){reading.textContent=n[0];status.textContent='✓ تمّت قراءة الصورة'}else status.textContent='الصورة محفوظة، لكن الرقم غير واضح'}catch(e){status.textContent='الصورة محفوظة، حدث خطأ في OCR'}} 
-</script></body></html>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SFF Meter Scanner</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f7;font-family:Arial,sans-serif;color:#17202a}
+.header{background:#1976d2;color:#fff;text-align:center;padding:17px}.header h1{margin:0;font-size:24px}.header p{margin:5px 0 0}
+.wrap{max-width:680px;margin:auto;padding:13px}.card{background:#fff;border-radius:18px;padding:15px;margin-bottom:13px;box-shadow:0 3px 15px #0001}
+.btn{display:block;text-align:center;background:#1976d2;color:#fff;padding:15px;border-radius:13px;font-size:18px;font-weight:700;cursor:pointer}input{display:none}
+img,canvas{width:100%;border-radius:14px;display:block;background:#111}.hidden{display:none!important}
+.result{text-align:center;border:2px solid #b8d7f5;border-radius:15px;padding:15px}.reading{font-size:46px;font-weight:800;direction:ltr;min-height:60px}
+.status{text-align:center;color:#555;min-height:25px;margin-top:8px}.ok{color:#13853b;font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{border:1px solid #ddd;border-radius:12px;padding:12px}.field small{color:#666}.field b{display:block;font-size:23px;margin-top:4px;direction:ltr}
+button{width:100%;padding:14px;border:0;border-radius:12px;background:#1769aa;color:#fff;font-size:17px;font-weight:700;margin-top:10px}
+</style>
+</head>
+<body>
+<header class="header"><h1>SFF Meter Scanner ⚡</h1><p>قارئ العدادات الذكي</p></header>
+<main class="wrap">
+<section class="card">
+<label class="btn" for="photo">📷 تصوير العداد</label>
+<input id="photo" type="file" accept="image/*" capture="environment">
+<div id="status" class="status">صورة واحدة فقط — والتطبيق يبحث عن نافذة الأرقام.</div>
+<img id="original" class="hidden">
+</section>
+
+<section class="card">
+<div class="result">
+<div>Current Reading — القراءة الحالية</div>
+<div id="reading" class="reading">—</div>
+<div id="ocr" class="status">بانتظار الصورة</div>
+</div>
+<canvas id="register" class="hidden"></canvas>
+</section>
+
+<section class="card">
+<div class="grid">
+<div class="field"><small>Previous Reading — السابقة</small><b id="prev">111224</b></div>
+<div class="field"><small>Current Reading — الحالية</small><b id="cur">—</b></div>
+</div>
+<div class="grid" style="margin-top:10px">
+<div class="field"><small>Consumption — الاستهلاك</small><b id="use">—</b></div>
+<div class="field"><small>Price / kWh</small><b>0.25 $</b></div>
+</div>
+<div class="field" style="margin-top:10px;text-align:center"><small>Total Amount</small><b id="total">—</b></div>
+</section>
+</main>
+
+<script>
+const input=document.getElementById('photo'), original=document.getElementById('original');
+const register=document.getElementById('register'), reading=document.getElementById('reading');
+const status=document.getElementById('status'), ocr=document.getElementById('ocr');
+const prev=document.getElementById('prev'),cur=document.getElementById('cur'),use=document.getElementById('use'),total=document.getElementById('total');
+const PRICE=.25;
+
+function dataURL(file){return new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
+function setReading(v){
+ reading.textContent=v;cur.textContent=v;
+ const a=parseFloat(prev.textContent)||0,b=parseFloat(v)||0,u=Math.max(0,b-a);
+ use.textContent=u+' kWh';total.textContent=(u*PRICE).toFixed(2)+' $';
+ localStorage.setItem('SFF_READING',v);
+}
+function autoWindow(img){
+ const w=img.naturalWidth,h=img.naturalHeight;
+ // Search the central 70% for a dark horizontal register.
+ const c=document.createElement('canvas');c.width=Math.min(900,w);c.height=Math.round(h*c.width/w);
+ const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
+ const data=ctx.getImageData(0,0,c.width,c.height).data;
+ let best={score:-1,x:.08,y:.30,ww:.84,hh:.28};
+ for(let yy=.25;yy<.70;yy+=.04){
+  for(let xx=.05;xx<.25;xx+=.04){
+   const ww=.55,hh=.18;let dark=0,n=0;
+   for(let y=Math.floor(c.height*yy);y<Math.floor(c.height*(yy+hh));y+=5)
+    for(let x=Math.floor(c.width*xx);x<Math.floor(c.width*(xx+ww));x+=5){
+     const i=(y*c.width+x)*4, lum=(data[i]+data[i+1]+data[i+2])/3;
+     if(lum<105)dark++;n++;
+    }
+   const score=dark/n;
+   if(score>best.score)best={score,x:xx,y:yy,ww,hh};
+  }
+ }
+ // Keep a generous register crop; avoids labels below and serial/barcode.
+ return best;
+}
+function makeVariants(img,box){
+ const w=img.naturalWidth,h=img.naturalHeight;
+ const sx=Math.floor(w*box.x),sy=Math.floor(h*box.y),sw=Math.floor(w*box.ww),sh=Math.floor(h*box.hh);
+ const out=document.createElement('canvas');out.width=sw*4;out.height=sh*4;
+ const q=out.getContext('2d');q.imageSmoothingEnabled=true;q.filter='grayscale(1) contrast(2.2) brightness(1.05)';
+ q.drawImage(img,sx,sy,sw,sh,0,0,out.width,out.height);
+ return out;
+}
+input.onchange=async()=>{
+ const f=input.files[0];if(!f)return;
+ status.textContent='📸 تم التصوير — عم نحدد نافذة الأرقام...';ocr.textContent='جاري التحليل...';reading.textContent='—';
+ const url=await dataURL(f);original.src=url;original.classList.remove('hidden');await new Promise(r=>original.onload=r);
+ localStorage.setItem('SFF_PHOTO',url);
+ const box=autoWindow(original);
+ const c=makeVariants(original,box);
+ register.width=c.width;register.height=c.height;register.getContext('2d').drawImage(c,0,0);register.classList.remove('hidden');
+ status.textContent='✓ حددنا نافذة العداد — قراءة الرقم الكامل...';
+ try{
+  const worker=await Tesseract.createWorker('eng');
+  await worker.setParameters({tessedit_char_whitelist:'0123456789.',user_defined_dpi:'300'});
+  let all=[];
+  for(const psm of ['7','6','13']){
+   await worker.setParameters({tessedit_pageseg_mode:psm});
+   const r=await worker.recognize(c);
+   all.push(r.data.text||'');
+  }
+  await worker.terminate();
+  let cand=[];
+  for(const t of all){
+   const m=t.replace(/,/g,' ').match(/\d{4,7}(?:\.\d)?/g)||[];
+   cand.push(...m);
+  }
+  cand=[...new Set(cand)].filter(x=>!['10000','1000','100','10','1','220VAC'].includes(x));
+  // If OCR returns a 5/6 digit number, preserve every digit.
+  cand.sort((a,b)=>b.replace('.','').length-a.replace('.','').length);
+  if(cand.length){
+   setReading(cand[0]);ocr.textContent='✓ تم استخراج القراءة كاملة';ocr.className='status ok';status.textContent='نجحت القراءة';
+  }else{
+   ocr.textContent='الصورة واضحة، لكن القراءة الآلية غير مؤكدة.';status.textContent='لم ندخل رقماً خاطئاً تلقائياً.';
+  }
+ }catch(e){ocr.textContent='تعذر تشغيل القراءة';status.textContent='الصورة محفوظة لكن OCR لم يكتمل.'}
+};
+const saved=localStorage.getItem('SFF_READING');if(saved)setReading(saved);
+</script>
+</body>
+</html>
