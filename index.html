@@ -1,138 +1,55 @@
-<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SFF Generator — Meter Digit Test</title>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>بلدية صريفا</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f3f5f7;font-family:Arial;color:#17202a}
-header{background:#1976d2;color:#fff;text-align:center;padding:16px}header h2{margin:0}header p{margin:4px 0}
-.wrap{max-width:680px;margin:auto;padding:13px}.card{background:#fff;border-radius:18px;padding:15px;margin-bottom:13px;box-shadow:0 3px 14px #0001}
-video,img,canvas{width:100%;border-radius:14px;background:#111;display:block}
-.cam{position:relative}.guide{position:absolute;left:9%;right:9%;top:34%;height:24%;border:3px solid #00c96b;border-radius:8px;pointer-events:none}
-button,.label{width:100%;display:block;padding:15px;border:0;border-radius:13px;background:#1976d2;color:#fff;font-size:18px;font-weight:700;text-align:center;margin-top:10px}
-input{display:none}.reading{text-align:center;font-size:48px;font-weight:800;direction:ltr;min-height:62px}.status{text-align:center;color:#555;min-height:24px;margin-top:8px}
-.note{font-size:13px;color:#777;text-align:center;line-height:1.6}
-</style></head>
-<body>
-<header><h2>⚡ SFF Generator</h2><p>اختبار قراءة أرقام العداد</p></header>
-<div class="wrap">
-<section class="card">
-<div class="cam"><video id="video" autoplay playsinline muted></video><div class="guide"></div></div>
-<button id="start">تشغيل الكاميرا</button>
-<button id="capture" disabled>📸 التقاط وقراءة العداد</button>
-<div id="status" class="status">وجّه المربع الأخضر على نافذة الأرقام.</div>
-</section>
-<section class="card">
-<img id="photo" style="display:none">
-<canvas id="reg" style="display:none"></canvas>
-</section>
-<section class="card">
-<div style="text-align:center">Current Reading — القراءة الحالية</div>
-<div id="reading" class="reading">—</div>
-<div id="result" class="status">بانتظار الصورة</div>
-</section>
-<section class="card">
-<div class="note">
-هيدا الاختبار ما بيستخدم OCR عام. بيحلل خانات عداد الأرقام نفسها، خانة بخانة، حتى ما يلتقط أرقام مثل 10000 أو الباركود.
-</div>
-</section>
-</div>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#182230;font-family:Arial,Tahoma,sans-serif}.top{height:65px;background:#fff;border-bottom:1px solid #e5e9ef;padding:10px 18px;display:flex;justify-content:space-between;align-items:center}.brand{display:flex;gap:10px;align-items:center}.logo{width:40px;height:40px;border-radius:10px;background:#182230;color:#fff;display:grid;place-items:center}.brand b{font-size:18px}.brand small{display:block;color:#7b8494}.layout{display:flex;min-height:calc(100vh - 65px)}aside{width:210px;background:#fff;border-left:1px solid #e5e9ef;padding:12px}.nav{padding:12px;border-radius:9px;margin-bottom:5px;color:#596579;cursor:pointer}.nav.active,.nav:hover{background:#182230;color:#fff}main{flex:1;padding:20px;max-width:1250px;margin:auto}.view{display:none}.view.active{display:block}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.head h2{margin:0}.head p{margin:4px 0;color:#778294;font-size:13px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card,.panel{background:#fff;border:1px solid #e4e8ef;border-radius:14px;padding:16px}.card span{font-size:12px;color:#778294}.card strong{display:block;font-size:25px;margin-top:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:12px;color:#596579;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid #d8dee8;border-radius:9px;background:#fbfcfe}.btn{border:0;border-radius:9px;padding:10px 15px;cursor:pointer}.primary{background:#182230;color:white}.secondary{background:#edf1f6;color:#344054}.green{background:#087443;color:#fff}.red{background:#b42318;color:#fff}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.table{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:9px;border-bottom:1px solid #edf0f4;text-align:right;font-size:12px}.photo{width:70px;height:52px;object-fit:cover;border-radius:7px}.modal{display:none;position:fixed;inset:0;background:#0006;align-items:center;justify-content:center;padding:15px;z-index:9}.modal.show{display:flex}.box{background:#fff;border-radius:15px;padding:20px;width:min(700px,100%);max-height:90vh;overflow:auto}.notice{background:#f5f8fc;padding:10px;border-radius:8px;color:#667085;font-size:12px;margin-top:10px}
+@media(max-width:800px){aside{width:62px}.nav{font-size:0;text-align:center}.nav:before{content:"•";font-size:22px}.cards{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}main{padding:12px}}
+</style></head><body>
+<header class="top"><div class="brand"><div class="logo">⚡</div><div><b>بلدية صريفا</b><small>نظام اشتراكات وفواتير المولدات</small></div></div><span id="clock"></span></header>
+<div class="layout"><aside>
+<div class="nav active" data-v="home">الرئيسية</div><div class="nav" data-v="customers">الزبائن والعدادات</div><div class="nav" data-v="readings">قراءات العدادات</div><div class="nav" data-v="invoices">الفواتير</div><div class="nav" data-v="payments">الدفعات</div><div class="nav" data-v="reports">التقارير</div><div class="nav" data-v="settings">الإعدادات</div>
+</aside><main>
+<section id="home" class="view active"><div class="head"><div><h2>الرئيسية</h2><p>إدارة كاملة من مكان واحد</p></div><button class="btn primary" onclick="go('customers')">+ زبون جديد</button></div><div class="cards"><div class="card"><span>الزبائن</span><strong id="dc">0</strong></div><div class="card"><span>العدادات</span><strong id="dm">0</strong></div><div class="card"><span>القراءات</span><strong id="dr">0</strong></div><div class="card"><span>المستحق</span><strong id="dd">$0.00</strong></div></div><div class="panel" style="margin-top:12px"><h3>آخر الفواتير</h3><div id="last"></div></div></section>
+
+<section id="customers" class="view"><div class="head"><div><h2>الزبائن والعدادات</h2><p>صورة العداد/الباركود مرجع فقط — رقم العداد يدوي.</p></div><button class="btn primary" onclick="customerForm()">+ إضافة زبون</button></div><div class="panel"><input id="search" oninput="render()" placeholder="بحث باسم الزبون أو العداد" style="padding:11px;width:100%;border:1px solid #d8dee8;border-radius:9px"><div id="ct" class="table"></div></div></section>
+
+<section id="readings" class="view"><div class="head"><div><h2>قراءات العدادات</h2><p>لا يوجد AI/OCR. أدخل القراءة يدوياً والصورة تحفظ كمرجع.</p></div><button class="btn primary" onclick="readingForm()">+ قراءة جديدة</button></div><div class="panel"><div id="rt" class="table"></div></div></section>
+
+<section id="invoices" class="view"><div class="head"><div><h2>الفواتير</h2><p>الفاتورة تعتمد على الاستهلاك والقراءة السابقة.</p></div><button class="btn primary" onclick="invoiceForm()">+ فاتورة</button></div><div class="panel"><div id="it" class="table"></div></div></section>
+
+<section id="payments" class="view"><div class="head"><div><h2>الدفعات</h2><p>تسجيل المدفوع ومتابعة الرصيد.</p></div><button class="btn primary" onclick="paymentForm()">+ دفعة</button></div><div class="panel"><div id="pt" class="table"></div></div></section>
+
+<section id="reports" class="view"><div class="head"><div><h2>التقارير</h2><p>ملخص الاستهلاك والفواتير والمدفوعات.</p></div><button class="btn secondary" onclick="print()">طباعة</button></div><div class="cards"><div class="card"><span>الفواتير</span><strong id="ri">$0</strong></div><div class="card"><span>المدفوع</span><strong id="rp">$0</strong></div><div class="card"><span>المتبقي</span><strong id="rd">$0</strong></div><div class="card"><span>الاستهلاك</span><strong id="rc">0</strong></div></div><div class="panel" style="margin-top:12px"><div id="report" class="table"></div></div></section>
+
+<section id="settings" class="view"><div class="head"><div><h2>الإعدادات</h2><p>إعدادات البلدية والعملة.</p></div></div><div class="panel"><div class="grid"><div class="field"><label>اسم الجهة</label><input id="sn"></div><div class="field"><label>العملة</label><select id="sc"><option>USD</option><option>LBP</option></select></div><div class="field"><label>سعر صرف الدولار</label><input id="sr" type="number"></div></div><div class="actions"><button class="btn primary" onclick="saveSet()">حفظ</button></div></div></section>
+</main></div><div id="modal" class="modal"><div id="box" class="box"></div></div>
+
 <script>
-const v=document.getElementById('video'), start=document.getElementById('start'), cap=document.getElementById('capture');
-const photo=document.getElementById('photo'), reg=document.getElementById('reg'), reading=document.getElementById('reading');
-const status=document.getElementById('status'), result=document.getElementById('result');
-let stream=null;
-
-start.onclick=async()=>{
- try{
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
-  v.srcObject=stream; await v.play(); cap.disabled=false;
-  status.textContent='✓ الكاميرا جاهزة. قرّب العداد وخلي نافذة الأرقام داخل المربع.';
- }catch(e){status.textContent='الكاميرا لم تعمل: '+e.message}
-};
-cap.onclick=()=>{
- if(!v.videoWidth)return;
- const c=document.createElement('canvas'); c.width=v.videoWidth;c.height=v.videoHeight;
- c.getContext('2d').drawImage(v,0,0,c.width,c.height);
- const data=c.toDataURL('image/jpeg',.95); photo.src=data;photo.style.display='block';
- // The guide is deliberately centered on the meter register.
- const x=.09,y=.34,w=.82,h=.24;
- const o=document.createElement('canvas');o.width=Math.floor(c.width*w);o.height=Math.floor(c.height*h);
- o.getContext('2d').drawImage(c,Math.floor(c.width*x),Math.floor(c.height*y),o.width,o.height,0,0,o.width,o.height);
- reg.width=o.width;reg.height=o.height;reg.getContext('2d').drawImage(o,0,0);reg.style.display='block';
- status.textContent='📸 تم التقاط الصورة — تحليل خانات الرقم...';
- setTimeout(()=>recognize(o),30);
-};
-
-function gray(img){
- const d=img.getContext('2d').getImageData(0,0,img.width,img.height), a=d.data;
- for(let i=0;i<a.length;i+=4){let g=.299*a[i]+.587*a[i+1]+.114*a[i+2];a[i]=a[i+1]=a[i+2]=g}
- img.getContext('2d').putImageData(d,0,0);return d;
-}
-function recognize(c){
- // Fast mechanical-register recognizer. It tries both polarities and segment masks.
- const d=gray(c), w=c.width,h=c.height;
- const A=[];
- for(let t=70;t<=180;t+=10){
-  let bits=new Uint8Array(w*h), n=0;
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let i=(y*w+x)*4;let g=d.data[i];if(g<t)bits[y*w+x]=1}
-  // projection finds the dense horizontal register; then split into six equal cells.
-  let best={score:0,y:0,hh:h};
-  for(let yy=Math.floor(h*.10);yy<Math.floor(h*.70);yy+=2){
-   let s=0;
-   for(let y=yy;y<Math.min(h,yy+Math.floor(h*.70));y+=3)
-    for(let x=0;x<w;x+=4) if(bits[y*w+x])s++;
-   if(s>best.score)best={score:s,y:yy,hh:Math.floor(h*.62)};
-  }
-  const y0=Math.max(0,Math.floor(best.y)), hh=Math.min(h-y0,Math.floor(best.hh));
-  // Six black/white register wheels; leave a little margin.
-  const nDigits=6, gap=.018, left=.015, usable=.97;
-  let str='', quality=0;
-  for(let k=0;k<nDigits;k++){
-   const x0=Math.floor(w*(left+k*usable/nDigits+gap/nDigits));
-   const x1=Math.floor(w*(left+(k+1)*usable/nDigits-gap/nDigits));
-   const cw=x1-x0, ch=hh;
-   const segs=[
-    [.50,.15,.58,.12],[.78,.38,.12,.50],[.78,.74,.12,.50],
-    [.50,.88,.58,.12],[.22,.74,.12,.50],[.22,.38,.12,.50],[.50,.50,.58,.12]
-   ];
-   const occ=[];
-   for(const s of segs){
-    let sx=Math.max(0,Math.floor(cw*(s[0]-s[2]/2))), ex=Math.min(cw,Math.floor(cw*(s[0]+s[2]/2)));
-    let sy=Math.max(0,Math.floor(ch*(s[1]-s[3]/2))), ey=Math.min(ch,Math.floor(ch*(s[1]+s[3]/2)));
-    let on=0,total=0;
-    for(let y=sy;y<ey;y+=2)for(let x=sx;x<ex;x+=2){if(bits[(y+y0)*w+(x+x0)])on++;total++}
-    occ.push(on/Math.max(1,total));
-   }
-   // For dark background/bright digits the polarity can be inverted later.
-   const patterns=[
-    [1,1,1,1,1,1,0],[0,1,1,0,0,0,0],[1,1,0,1,1,0,1],[1,1,1,1,0,0,1],
-    [0,1,1,0,0,1,1],[1,0,1,1,0,1,1],[1,0,1,1,1,1,1],[1,1,1,0,0,0,0],
-    [1,1,1,1,1,1,1],[1,1,1,1,0,1,1]
-   ];
-   let bestD=-1,bestScore=-1;
-   for(let digit=0;digit<10;digit++){
-    const p=patterns[digit];let sc=0;
-    for(let j=0;j<7;j++){let want=p[j]?1:0;sc += want ? Math.min(1,occ[j]*2) : Math.max(0,1-occ[j]*2)}
-    if(sc>bestScore){bestScore=sc;bestD=digit}
-   }
-   if(bestScore>3.7){str+=bestD;quality+=bestScore/7}else str+='?';
-  }
-  if(!str.includes('?') && quality>3.7)A.push(str);
- }
- // Choose consensus, preserving all six digits.
- const count={};for(const s of A)count[s]=(count[s]||0)+1;
- const keys=Object.keys(count).sort((a,b)=>count[b]-count[a]);
- if(keys.length){
-  const s=keys[0];
-  reading.textContent=s;
-  result.textContent='✓ تم استخراج 6 خانات كاملة';
-  result.style.color='#13853b';result.style.fontWeight='700';
-  status.textContent='تمت القراءة بدون OCR عام.';
- }else{
-  reading.textContent='—';
-  result.textContent='ما في قراءة مؤكدة — ما رح نحط رقم غلط.';
-  status.textContent='قرّب نافذة الأرقام داخل المربع وخد صورة أوضح.';
- }
-}
+const C='srifa_customers_final',R='srifa_readings_final',I='srifa_invoices_final',P='srifa_payments_final',S='srifa_settings_final';
+const $=x=>document.getElementById(x), arr=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}, put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const set=()=>JSON.parse(localStorage.getItem(S)||'{"name":"بلدية صريفا","currency":"USD","rate":89500}');
+const money=n=>set().currency==='LBP'?Number(n).toLocaleString()+' LBP':'$'+Number(n).toFixed(2);
+function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));$(v).classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.v===v));render()}
+document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>go(x.dataset.v));
+function modal(h){$('box').innerHTML=h;$('modal').classList.add('show')}function closeM(){$('modal').classList.remove('show')}
+$('modal').onclick=e=>{if(e.target.id==='modal')closeM()}
+const file64=f=>new Promise((res,rej)=>{if(!f)return res(null);let r=new FileReader;r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)});
+function customerForm(id=0){let x=id?arr(C).find(z=>z.id===id):null;modal(`<h3>${x?'تعديل':'إضافة'} زبون</h3><div class="grid"><div class="field"><label>اسم الزبون *</label><input id="n" value="${esc(x?.name)}"></div><div class="field"><label>الهاتف</label><input id="ph" value="${esc(x?.phone)}"></div><div class="field"><label>رقم العداد *</label><input id="m" value="${esc(x?.meter)}"></div><div class="field"><label>سعر الوحدة</label><input id="pr" type="number" step=".0001" value="${x?.price??.4}"></div><div class="field"><label>صورة العداد / الباركود</label><input id="photo" type="file" accept="image/*" capture="environment"></div></div><div class="notice">الصورة تُحفظ كمرجع فقط. لا يتم تخمين رقم العداد بالـAI.</div><div class="actions"><button class="btn primary" onclick="saveC(${id})">حفظ</button><button class="btn secondary" onclick="closeM()">إلغاء</button></div>`)}
+async function saveC(id){let a=arr(C),x=id?a.find(z=>z.id===id):null,n=$('n').value.trim(),m=$('m').value.trim();if(!n||!m)return alert('أدخل الاسم ورقم العداد.');if(a.some(z=>z.meter.toLowerCase()===m.toLowerCase()&&z.id!==id))return alert('رقم العداد موجود.');let photo=x?.photo||null;if($('photo').files[0])photo=await file64($('photo').files[0]);let o={id:id||Date.now(),name:n,phone:$('ph').value.trim(),meter:m,price:Number($('pr').value||0),photo};id?a=a.map(z=>z.id===id?o:z):a.push(o);put(C,a);closeM();render()}
+function delC(id){if(confirm('حذف الزبون؟')){put(C,arr(C).filter(x=>x.id!==id));render()}}
+function renderCustomers(){let q=($('search')?.value||'').toLowerCase(),a=arr(C).filter(x=>(x.name+x.phone+x.meter).toLowerCase().includes(q));$('ct').innerHTML=a.length?`<table><tr><th>الصورة</th><th>الزبون</th><th>الهاتف</th><th>العداد</th><th>السعر</th><th></th></tr>${a.map(x=>`<tr><td>${x.photo?`<img class="photo" src="${x.photo}">`:'—'}</td><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td>${esc(x.meter)}</td><td>${x.price}</td><td><button class="btn secondary" onclick="customerForm(${x.id})">تعديل</button> <button class="btn red" onclick="delC(${x.id})">حذف</button></td></tr>`).join('')}</table>`:'<div class="empty">لا يوجد زبائن.</div>'}
+function opts(){return arr(C).map(x=>`<option value="${x.id}">${esc(x.name)} — ${esc(x.meter)}</option>`).join('')}
+function readingForm(){modal(`<h3>تسجيل قراءة</h3><div class="grid"><div class="field"><label>الزبون</label><select id="cid"><option value="">اختر</option>${opts()}</select></div><div class="field"><label>القراءة الحالية</label><input id="val" inputmode="numeric" placeholder="أدخل الرقم كما يظهر"></div><div class="field"><label>صورة العداد المرجعية</label><input id="rpht" type="file" accept="image/*" capture="environment"></div><div class="field"><label>التاريخ</label><input id="rdt" type="date" value="${new Date().toISOString().slice(0,10)}"></div></div><div class="notice">القراءة تقبل أي عدد من الخانات، والصورة تُحفظ مع السجل.</div><div class="actions"><button class="btn primary" onclick="saveR()">حفظ القراءة</button></div>`)}
+async function saveR(){let cid=Number($('cid').value),v=$('val').value.trim(),c=arr(C).find(x=>x.id===cid),a=arr(R);if(!c||!/^\d{1,20}$/.test(v))return alert('اختر الزبون وأدخل أرقاماً فقط.');let last=a.filter(x=>x.cid===cid).sort((x,y)=>y.id-x.id)[0];if(last&&BigInt(v)<BigInt(last.value))return alert('القراءة الحالية أقل من السابقة.');let photo=await file64($('rpht').files[0]);a.push({id:Date.now(),cid,name:c.name,meter:c.meter,value:v,previous:last?.value||null,consumption:last?(BigInt(v)-BigInt(last.value)).toString():null,photo,date:$('rdt').value});put(R,a);closeM();render()}
+function renderReadings(){let a=arr(R).sort((x,y)=>y.id-x.id);$('rt').innerHTML=a.length?`<table><tr><th>الصورة</th><th>الزبون</th><th>العداد</th><th>السابقة</th><th>الحالية</th><th>الاستهلاك</th><th>التاريخ</th></tr>${a.map(x=>`<tr><td>${x.photo?`<img class="photo" src="${x.photo}">`:'—'}</td><td>${esc(x.name)}</td><td>${esc(x.meter)}</td><td>${x.previous||'—'}</td><td><b>${x.value}</b></td><td>${x.consumption??'—'}</td><td>${x.date}</td></tr>`).join('')}</table>`:'<div class="empty">لا توجد قراءات.</div>'}
+function invoiceForm(){modal(`<h3>إصدار فاتورة</h3><div class="grid"><div class="field"><label>الزبون</label><select id="ic" onchange="invoiceReads()"><option value="">اختر</option>${opts()}</select></div><div class="field"><label>القراءة</label><select id="ir"></select></div><div class="field"><label>سعر الوحدة</label><input id="ip" type="number" step=".0001"></div><div class="field"><label>خصم</label><input id="idisc" type="number" value="0"></div></div><div class="actions"><button class="btn primary" onclick="saveI()">إصدار</button></div>`)}
+function invoiceReads(){let cid=Number($('ic').value),c=arr(C).find(x=>x.id===cid),rs=arr(R).filter(x=>x.cid===cid).sort((a,b)=>b.id-a.id);$('ip').value=c?.price||0;$('ir').innerHTML=rs.map(x=>`<option value="${x.id}">${x.value} — ${x.date}</option>`).join('')}
+function saveI(){let cid=Number($('ic').value),rid=Number($('ir').value),c=arr(C).find(x=>x.id===cid),r=arr(R).find(x=>x.id===rid);if(!c||!r||r.consumption===null)return alert('تحتاج قراءة سابقة أولاً.');let total=Math.max(0,Number(r.consumption)*Number($('ip').value||0)-Number($('idisc').value||0)),a=arr(I);a.push({id:Date.now(),no:'INV-'+String(a.length+1).padStart(5,'0'),name:c.name,meter:c.meter,previous:r.previous,current:r.value,consumption:Number(r.consumption),price:Number($('ip').value),total,paid:0,date:new Date().toISOString().slice(0,10)});put(I,a);closeM();render()}
+function renderInvoices(){let a=arr(I).sort((x,y)=>y.id-x.id);$('it').innerHTML=a.length?`<table><tr><th>الفاتورة</th><th>الزبون</th><th>العداد</th><th>الاستهلاك</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>التاريخ</th></tr>${a.map(x=>`<tr><td>${x.no}</td><td>${esc(x.name)}</td><td>${esc(x.meter)}</td><td>${x.consumption}</td><td>${money(x.total)}</td><td>${money(x.paid)}</td><td>${money(x.total-x.paid)}</td><td>${x.date}</td></tr>`).join('')}</table>`:'<div class="empty">لا توجد فواتير.</div>'}
+function paymentForm(){let a=arr(I).filter(x=>x.total>x.paid);modal(`<h3>تسجيل دفعة</h3><div class="grid"><div class="field"><label>الفاتورة</label><select id="pi">${a.map(x=>`<option value="${x.id}">${x.no} — ${esc(x.name)} — ${money(x.total-x.paid)}</option>`).join('')}</select></div><div class="field"><label>المبلغ</label><input id="pa" type="number" step=".01"></div></div><div class="actions"><button class="btn primary" onclick="saveP()">حفظ</button></div>`)}
+function saveP(){let iid=Number($('pi').value),amt=Number($('pa').value),a=arr(I),x=a.find(z=>z.id===iid);if(!x||amt<=0||amt>x.total-x.paid)return alert('تحقق من المبلغ.');x.paid+=amt;put(I,a);let p=arr(P);p.push({id:Date.now(),no:x.no,name:x.name,amount:amt,date:new Date().toISOString().slice(0,10)});put(P,p);closeM();render()}
+function renderPayments(){let a=arr(P).sort((x,y)=>y.id-x.id);$('pt').innerHTML=a.length?`<table><tr><th>الفاتورة</th><th>الزبون</th><th>المبلغ</th><th>التاريخ</th></tr>${a.map(x=>`<tr><td>${x.no}</td><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td>${x.date}</td></tr>`).join('')}</table>`:'<div class="empty">لا توجد دفعات.</div>'}
+function renderReports(){let i=arr(I),p=arr(P),r=arr(R),t=i.reduce((s,x)=>s+x.total,0),pd=p.reduce((s,x)=>s+x.amount,0);$('ri').textContent=money(t);$('rp').textContent=money(pd);$('rd').textContent=money(t-pd);$('rc').textContent=r.reduce((s,x)=>s+Number(x.consumption||0),0).toLocaleString();$('report').innerHTML=i.length?`<table><tr><th>الزبون</th><th>الفواتير</th><th>الاستهلاك</th><th>الإجمالي</th><th>المتبقي</th></tr>${arr(C).map(c=>{let ii=i.filter(x=>x.name===c.name),rr=r.filter(x=>x.cid===c.id);return ii.length?`<tr><td>${esc(c.name)}</td><td>${ii.length}</td><td>${rr.reduce((s,x)=>s+Number(x.consumption||0),0)}</td><td>${money(ii.reduce((s,x)=>s+x.total,0))}</td><td>${money(ii.reduce((s,x)=>s+x.total-x.paid,0))}</td></tr>`:''}).join('')}</table>`:'<div class="empty">لا توجد بيانات.</div>'}
+function render(){let c=arr(C),r=arr(R),i=arr(I),due=i.reduce((s,x)=>s+x.total-x.paid,0);$('dc').textContent=c.length;$('dm').textContent=c.length;$('dr').textContent=r.length;$('dd').textContent=money(due);let li=i.slice().sort((a,b)=>b.id-a.id).slice(0,6);$('last').innerHTML=li.length?li.map(x=>`<div style="padding:9px;border-bottom:1px solid #eee">${x.no} — ${esc(x.name)} — ${money(x.total-x.paid)} متبقي</div>`).join(''):'<div class="empty">لا توجد فواتير.</div>';renderCustomers();renderReadings();renderInvoices();renderPayments();renderReports();let s=set();$('sn').value=s.name;$('sc').value=s.currency;$('sr').value=s.rate}
+function saveSet(){put(S,{name:$('sn').value.trim()||'بلدية صريفا',currency:$('sc').value,rate:Number($('sr').value||89500)});alert('تم الحفظ');render()}
+setInterval(()=>{$('clock').textContent=new Date().toLocaleString('ar-LB',{dateStyle:'short',timeStyle:'short'})},1000);render();
 </script></body></html>
